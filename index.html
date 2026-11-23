@@ -1,0 +1,369 @@
+<!DOCTYPE html>
+<html lang="el">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Ανάλυση κινδύνου χαρτοφυλακίου</title>
+<style>
+:root{--bg:#f4f6f9;--card:#fff;--text:#14213d;--muted:#5d6678;--line:#dde2ea;--accent:#1f5fbf;--bench:#8a93a6;--bad:#b3341f;--note:#fff6d6;--notetx:#5c4a00;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px);color-scheme:light}
+@media (prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f1520;--card:#18202e;--text:#e6ebf4;--muted:#9aa5ba;--line:#2a3547;--accent:#6ea3f5;--bench:#7d889e;--bad:#ff8a73;--note:#3a3216;--notetx:#f3df99;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f1520;--card:#18202e;--text:#e6ebf4;--muted:#9aa5ba;--line:#2a3547;--accent:#6ea3f5;--bench:#7d889e;--bad:#ff8a73;--note:#3a3216;--notetx:#f3df99;color-scheme:dark}
+*{box-sizing:border-box}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--text);font:15px/1.5 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
+main{max-width:980px;margin:0 auto;padding:20px 16px 48px}
+h1{font:600 28px/1.2 Georgia,"Times New Roman",serif;margin:0 0 4px}
+h2{font:600 18px/1.3 Georgia,serif;margin:0 0 10px}
+p{margin:0 0 8px}
+.sub{color:var(--muted);margin-bottom:14px}
+.note{background:var(--note);color:var(--notetx);padding:10px 12px;border-radius:8px;margin-bottom:16px;font-size:14px}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:16px;margin-bottom:16px}
+.grid{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.6fr);gap:16px}
+@media(max-width:760px){.grid{grid-template-columns:1fr}}
+.row{display:grid;grid-template-columns:minmax(0,1.3fr) minmax(0,1.5fr) 84px;gap:8px;align-items:center;padding:6px 0;border-bottom:1px solid var(--line)}
+.row:last-child{border:0}
+.row span{text-align:right;line-height:1.25}.row small{color:var(--muted);font-size:12px}
+.pw{display:flex;gap:16px;align-items:center;flex-wrap:wrap}.pl2{flex:1;min-width:200px}.pr{display:grid;grid-template-columns:12px minmax(0,1fr) auto auto;gap:8px;align-items:center;padding:3px 0;font-size:14px}.pr i{width:12px;height:12px;border-radius:3px}.pr small{color:var(--muted);font-size:12px;min-width:64px;text-align:right}
+.tag{font-size:12px;color:var(--muted)}
+input[type=range]{width:100%;accent-color:var(--accent)}
+.metrics{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px}
+.m{border:1px solid var(--line);border-radius:8px;padding:10px}
+.m b{display:block;font:600 22px/1.2 Georgia,serif}
+.m span{font-size:13px;color:var(--muted)}
+.neg{color:var(--bad)}
+.scroll{overflow-x:auto}
+table{border-collapse:collapse;font-size:13px;width:100%}
+th,td{padding:5px 7px;text-align:center;white-space:nowrap}
+th{font-weight:500;color:var(--muted)}
+td.h{text-align:left;color:var(--muted)}
+button,select,input[type=number],input[type=file]{font:inherit;color:var(--text);background:var(--card);border:1px solid var(--line);border-radius:6px;padding:6px 10px}
+button{cursor:pointer}
+button:focus-visible,input:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+svg text{fill:var(--muted);font-size:12px}
+#chart{position:relative}.tip{position:absolute;top:8px;display:none;background:var(--card);border:1px solid var(--line);border-radius:8px;padding:6px 10px;font-size:13px;line-height:1.45;pointer-events:none;white-space:nowrap;z-index:2}
+.leg{display:flex;gap:16px;font-size:13px;color:var(--muted);margin-top:4px}
+.leg i{display:inline-block;width:14px;height:3px;vertical-align:middle;margin-right:5px}
+.tools{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-top:10px}
+.pl{border-left:4px solid var(--accent);padding:6px 10px;margin:8px 0;background:var(--bg);border-radius:0 6px 6px 0}.pl.g{border-color:#2f9e6b}.pl.w{border-color:var(--bad)}.sum{font-weight:600;margin-bottom:6px}
+details.more>summary{cursor:pointer;list-style:none;display:inline-block;border:1px solid var(--line);background:var(--card);border-radius:8px;padding:10px 16px;font-weight:600;margin-bottom:16px}
+details.more>summary::-webkit-details-marker{display:none}
+details.more>summary::after{content:" \25BE"}
+details.more[open]>summary::after{content:" \25B4"}
+details.more>summary:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+</style>
+</head>
+<body>
+<main>
+<h1>Ανάλυση κινδύνου χαρτοφυλακίου</h1>
+<p class="sub">Συνδύασε μετοχές και δες πόσο ριψοκίνδυνος είναι ο συνδυασμός.</p>
+<div class="note" id="dnote" style="display:none"><b>Προσομοιωμένα δεδομένα.</b> Οι τιμές εδώ είναι προσομοίωση και όχι πραγματικό ιστορικό της αγοράς. Χρησιμοποίησέ τες μόνο για εκπαίδευση, όχι για επενδυτικές αποφάσεις.</div>
+
+<section class="card" id="dcard">
+<h2>Δεδομένα</h2>
+<div class="tools" style="margin:0 0 8px">
+<label>Πηγή <select id="mode"><option value="sim">Προσομοίωση</option><option value="real">Πραγματικά δεδομένα (CSV)</option></select></label>
+</div>
+<div id="realbox" style="display:none">
+<p class="tag">Κατέβασε ένα CSV για κάθε μετοχή (π.χ. από το Yahoo Finance, καρτέλα Historical Data, Frequency: Daily, ή από το Stooq). Σε ορισμένα σύμβολα το Yahoo δεν προσφέρει λήψη· τότε δοκίμασε άλλη πηγή. Ονόμασε κάθε αρχείο με το σύμβολο: οι ελληνικές μετοχές να τελειώνουν σε .AT (π.χ. ETE.AT.csv), οι υπόλοιπες όχι (π.χ. SPY.csv). Μόνο ημερήσιες τιμές κλεισίματος (όχι εβδομαδιαίες ή μηνιαίες). Χρειάζονται τουλάχιστον 2 αρχεία και τουλάχιστον 1 έτος κοινών ημερών.</p>
+<div class="tools"><label>Νόμισμα τιμών <select id="curs"><option value="$">USD ($)</option><option value="€">EUR (€)</option></select></label><input id="files" type="file" accept=".csv,text/csv" multiple><label>Δείκτης αναφοράς <select id="bm"></select></label></div>
+</div>
+<p id="dmsg" class="tag" style="margin-top:8px"></p>
+</section>
+
+<div class="grid">
+<section class="card">
+<h2>Βάρη χαρτοφυλακίου</h2>
+<div id="rows"></div>
+<div class="tools">
+<label>Επενδυμένο ποσό (<span id="curl">€</span>) <input id="amt" type="number" value="10000" min="100" step="100" style="width:100px"></label>
+<button id="reseed">Νέο προσομοιωμένο σενάριο</button>
+</div>
+</section>
+
+<section class="card">
+<h2>Πώς θα είχε πάει το χαρτοφυλάκιο τα τελευταία <span id="yl">3 έτη</span></h2>
+<div id="chart"></div>
+<div class="leg"><span><i style="background:var(--accent)"></i>Το χαρτοφυλάκιό σου</span><span><i style="background:var(--bench)"></i><span id="bnl">Διεθνές ETF</span> (για σύγκριση)</span><span><i style="background:none;border-top:2px dashed var(--muted);height:0"></i>Αρχική επένδυση</span></div>
+<div class="tools" style="margin:10px 0 0"><label>Περίοδος <select id="yrs"></select></label></div>
+<h2 style="margin:20px 0 10px">Σύνθεση χαρτοφυλακίου</h2>
+<div id="pie"></div>
+</section>
+</div>
+
+<section class="card">
+<h2>Με λίγα λόγια</h2>
+<div id="plain"></div>
+</section>
+
+<details class="more">
+<summary>Για όσους θέλουν περισσότερα</summary>
+<section class="card">
+<h2>Δείκτες κινδύνου</h2>
+<div class="metrics" id="metrics"></div>
+</section>
+
+<section class="card">
+<h2>Συσχετίσεις μεταξύ των τίτλων</h2>
+<p class="tag">Κοντά στο +1: οι τίτλοι κινούνται μαζί, άρα η διαφοροποίηση είναι ασθενής. Κοντά στο 0 ή αρνητικά: αλληλοεξουδετερώνονται περισσότερο.</p>
+<div class="scroll" id="corr"></div>
+</section>
+
+<section class="card">
+<h2>Πίνακας συνδιακύμανσης και διακύμανση χαρτοφυλακίου</h2>
+<p class="tag">Ετήσιος πίνακας συνδιακύμανσης Σ. Στη διαγώνιο βρίσκονται οι διακυμάνσεις σ², εκτός διαγωνίου οι συνδιακυμάνσεις σij = ρij·σi·σj. Η διακύμανση του χαρτοφυλακίου είναι σp² = wᵀΣw = ΣΣ wi·wj·σij.</p>
+<div class="scroll" id="cov"></div>
+<p id="varchk" style="margin-top:8px"></p>
+</section>
+
+<section class="card">
+<h2>Αποτελεσματικό σύνορο και Γραμμή Κεφαλαιαγοράς (CML)</h2>
+<div class="tools" style="margin:0 0 8px"><label>Μη επικίνδυνο επιτόκιο Rf (% ετησίως) <input id="rf" type="number" value="2.5" step="0.25" style="width:80px"></label><label><input id="ss" type="checkbox"> Επιτρέπεται short-selling</label></div>
+<div id="front"></div>
+<div class="leg" id="fleg" style="flex-wrap:wrap"></div>
+<div class="metrics" id="fpts" style="margin-top:12px"></div>
+<p class="tag" id="fnote" style="margin-top:8px"></p>
+<div class="tools"><button id="optbtn">Δημιούργησε τον βέλτιστο συνδυασμό</button><span id="optmsg" class="tag"></span></div>
+</section>
+</details>
+</main>
+
+<script>
+let N=756;
+let A=[
+{id:"NBG",n:"Εθνική Τράπεζα",t:"GR",mu:.18,bg:.8,br:1.2,s:1.0,w:25},
+{id:"PPC",n:"ΔΕΗ",t:"GR",mu:.15,bg:.6,br:.9,s:1.0,w:15},
+{id:"OTE",n:"ΟΤΕ",t:"GR",mu:.08,bg:.4,br:.5,s:.6,w:10},
+{id:"JUM",n:"Jumbo",t:"GR",mu:.10,bg:.6,br:.8,s:.8,w:0},
+{id:"PIR",n:"Τράπεζα Πειραιώς",t:"GR",mu:.20,bg:.8,br:1.3,s:1.1,w:0},
+{id:"MET",n:"Metlen",t:"GR",mu:.16,bg:.7,br:.9,s:1.0,w:0},
+{id:"SPY",n:"S&P 500 ETF",t:"INT",mu:.09,bg:1,br:0,s:.05,w:35},
+{id:"AAPL",n:"Apple",t:"INT",mu:.14,bg:1.1,br:0,s:.8,w:15},
+{id:"EU50",n:"Euro Stoxx 50 ETF",t:"INT",mu:.06,bg:.9,br:.2,s:.1,w:0}
+];
+const A0=A.map(a=>({...a}));
+const BENCH={mu:.08,bg:.95,br:0,s:.05};
+let seed=42,D={},B=[],DF={},BF=[],DT=[],Y=3,REAL=false,K=252,BN="Διεθνές ETF",BNL="διεθνές ETF",RD=null,CUR="€";
+function rng(a){return function(){a|=0;a=a+0x6D2B79F5|0;let t=Math.imul(a^a>>>15,1|a);t=t+Math.imul(t^t>>>7,61|t)^t;return((t^t>>>14)>>>0)/4294967296}}
+function gs(r){let u=0;while(!u)u=r();return Math.sqrt(-2*Math.log(u))*Math.cos(6.283185307*r())}
+function gen(){
+const r=rng(seed),g=[],h=[];
+for(let i=0;i<2520;i++){g.push(gs(r));h.push(gs(r))}
+const mk=a=>g.map((x,i)=>a.mu/252+a.bg*x*.010+a.br*h[i]*.009+a.s*gs(r)*.010);
+DF={};A0.forEach(a=>DF[a.id]=mk(a));BF=mk(BENCH);
+}
+const mean=x=>x.reduce((a,b)=>a+b,0)/x.length;
+const sd=x=>{const m=mean(x);return Math.sqrt(x.reduce((a,b)=>a+(b-m)**2,0)/(x.length-1))};
+function corr(x,y){const mx=mean(x),my=mean(y);let c=0,a=0,b=0;for(let i=0;i<x.length;i++){c+=(x[i]-mx)*(y[i]-my);a+=(x[i]-mx)**2;b+=(y[i]-my)**2}return c/Math.sqrt(a*b)}
+function curve(r){let v=100;return[100].concat(r.map(x=>v*=1+x))}
+function stats(r){
+const c=curve(r);let pk=0,dd=0;
+c.forEach(v=>{pk=Math.max(pk,v);dd=Math.min(dd,v/pk-1)});
+const s=[...r].sort((a,b)=>a-b);
+return{c,mu:mean(r)*K,ret:Math.pow(c[c.length-1]/100,K/r.length)-1,vol:sd(r)*Math.sqrt(K),dd,var:-s[Math.floor(.05*s.length)]};
+}
+const fmt=(x,d)=>x.toLocaleString("el-GR",{minimumFractionDigits:d,maximumFractionDigits:d});
+const pct=(x,d=1)=>fmt(x*100,d)+"%";
+function buildRows(){
+document.getElementById("rows").innerHTML=A.map(a=>`<div class="row"><div>${a.n}<div class="tag"${REAL?` data-tg="${a.id}" style="cursor:pointer;text-decoration:underline dotted" title="Πάτησε για αλλαγή"`:""}>${a.t==="GR"?"Ελλάδα":"Διεθνές"}</div></div><input type="range" min="0" max="100" value="${a.w}" aria-label="Βάρος ${a.n}" data-id="${a.id}"><span id="v${a.id}">${a.w}</span></div>`).join("");
+document.querySelectorAll("input[type=range]").forEach(el=>el.oninput=()=>{A.find(a=>a.id===el.dataset.id).w=+el.value;render()});
+document.querySelectorAll("[data-tg]").forEach(el=>el.onclick=()=>{const a=A.find(x=>x.id===el.dataset.tg);a.t=a.t==="GR"?"INT":"GR";buildRows();render()});
+}
+function drawChart(p,b,amt){
+const a=amt||100,W=660,H=340,L=80,R=78,T=14,Bm=32,n=p.length-1;
+const mx=Math.max(...p,...b)*a/100,raw=mx/4,pw=Math.pow(10,Math.floor(Math.log10(raw))),nn=raw/pw,st=(nn<=1?1:nn<=2?2:nn<=5?5:10)*pw,top=Math.ceil(mx/st)*st,hi=top*100/a;
+const X=i=>L+i/n*(W-L-R),YP=v=>T+(hi-v)/hi*(H-T-Bm),E=v=>Math.round(v*a/100).toLocaleString("el-GR")+" "+CUR,ch=v=>(v>=100?"+":"−")+fmt(Math.abs(v-100),0)+"%";
+let pk=0,pi=0,dd=0,ps=0,ts=0;
+for(let i=0;i<=n;i++){if(p[i]>pk){pk=p[i];pi=i}const d=p[i]/pk-1;if(d<dd){dd=d;ps=pi;ts=i}}
+let g="";
+for(let k=0;k<=top/st+.5;k++){const v=k*st*100/a;g+=`<line x1="${L}" x2="${W-R}" y1="${YP(v)}" y2="${YP(v)}" stroke="var(--line)"/><text x="${L-8}" y="${YP(v)+4}" text-anchor="end">${Math.round(k*st).toLocaleString("el-GR")} ${CUR}</text>`}
+for(let k=0;k<=Y;k+=(Y>5?2:1)){const i=Math.round(k*n/Y);g+=`<text x="${X(i)}" y="${H-12}" text-anchor="${k===0?"start":k===Y?"end":"middle"}">${fdl(WD[i])}</text>`}
+const sh=dd<-.02?`<rect x="${X(ps)}" y="${T}" width="${Math.max(2,X(ts)-X(ps))}" height="${H-T-Bm}" fill="var(--bad)" opacity=".12"/><text x="${(X(ps)+X(ts))/2}" y="${T+14}" text-anchor="middle" style="fill:var(--bad);font-weight:600">Μέγιστη πτώση ${pct(dd,0)}</text>`:"";
+const path=c=>c.map((v,i)=>(i?"L":"M")+X(i).toFixed(1)+","+YP(v).toFixed(1)).join("");
+const lp=p[n],lb=b[n];let yp=YP(lp),yb=YP(lb);if(Math.abs(yp-yb)<15){if(yp<=yb){yp-=8;yb+=8}else{yp+=8;yb-=8}}
+const svg=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Αξία χαρτοφυλακίου σε σύγκριση με το διεθνές ETF, σε ευρώ">${g}${sh}<line x1="${L}" x2="${W-R}" y1="${YP(100)}" y2="${YP(100)}" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="6 4"/><path d="${path(b)}" fill="none" stroke="var(--bench)" stroke-width="1.8"/><path d="${path(p)}" fill="none" stroke="var(--accent)" stroke-width="2.4"/><text x="${W-R+8}" y="${yp+4}" style="fill:var(--accent);font-weight:600">${E(lp)}</text><text x="${W-R+8}" y="${yb+4}" style="fill:var(--bench);font-weight:600">${E(lb)}</text><g id="hv" style="display:none"><line id="hl" y1="${T}" y2="${H-Bm}" stroke="var(--muted)"/><circle id="hp" r="4.5" fill="var(--accent)"/><circle id="hb" r="4.5" fill="var(--bench)"/></g><rect id="ov" x="${L}" y="${T}" width="${W-L-R}" height="${H-T-Bm}" fill="transparent" style="touch-action:pan-y"/></svg><div id="tip" class="tip"></div>`;
+const el=document.getElementById("chart");el.innerHTML=svg;
+const sv=el.querySelector("svg"),hv=el.querySelector("#hv"),tip=el.querySelector("#tip"),ov=el.querySelector("#ov");
+const mv2=ev=>{const r=sv.getBoundingClientRect(),i=Math.max(0,Math.min(n,Math.round(((ev.clientX-r.left)/r.width*W-L)/(W-L-R)*n))),x=X(i);
+hv.style.display="";const set=(id,o)=>{const q=el.querySelector(id);for(const k in o)q.setAttribute(k,o[k])};
+set("#hl",{x1:x,x2:x});set("#hp",{cx:x,cy:YP(p[i])});set("#hb",{cx:x,cy:YP(b[i])});
+tip.innerHTML=`<b>${fdl(WD[i])}</b><br><span style="color:var(--accent)">●</span> Χαρτοφυλάκιο: ${E(p[i])} (${ch(p[i])})<br><span style="color:var(--bench)">●</span> ${BN}: ${E(b[i])} (${ch(b[i])})<br>Διαφορά: ${E(p[i]-b[i])}`;
+tip.style.display="block";const px=x/W*r.width;tip.style.left=(px>r.width*.55?px-tip.offsetWidth-12:px+12)+"px"};
+ov.onpointermove=mv2;ov.onpointerdown=mv2;ov.onpointerleave=()=>{hv.style.display="none";tip.style.display="none"};
+}
+const PAL=["#1f5fbf","#2f9e6b","#e08a1e","#8e5bd6","#d94f6b","#17a2b8","#7a8a3a","#b86a2d","#6c7a96"];
+function pie(amt){
+const tt=A.reduce((s,a)=>s+a.w,0),el=document.getElementById("pie");
+if(!tt){el.innerHTML="";return}
+const r=70,C=2*Math.PI*r;let off=0,arcs="",lg="";
+A.forEach((a,i)=>{if(!a.w)return;const f=a.w/tt,col=PAL[i%PAL.length];
+arcs+=`<circle cx="100" cy="100" r="${r}" fill="none" stroke="${col}" stroke-width="34" stroke-dasharray="${(f*C).toFixed(2)} ${(C-f*C).toFixed(2)}" stroke-dashoffset="${(-off).toFixed(2)}" transform="rotate(-90 100 100)"><title>${a.n}: ${fmt(f*100,0)}%</title></circle>`;off+=f*C;
+lg+=`<div class="pr"><i style="background:${col}"></i><span>${a.n}</span><b>${fmt(f*100,0)}%</b><small>${Math.round(f*amt).toLocaleString("el-GR")} ${CUR}</small></div>`});
+const gr=A.filter(a=>a.t==="GR").reduce((s,a)=>s+a.w,0)/tt;
+el.innerHTML=`<div class="pw"><svg viewBox="0 0 200 200" width="190" role="img" aria-label="Κατανομή χαρτοφυλακίου">${arcs}<text x="100" y="96" text-anchor="middle">Σύνολο</text><text x="100" y="117" text-anchor="middle" style="font-size:16px;font-weight:600;fill:var(--text)">${Math.round(amt).toLocaleString("el-GR")} ${CUR}</text></svg><div class="pl2">${lg}<p class="tag" style="margin-top:8px">Ελλάδα ${fmt(gr*100,0)}% · Διεθνή ${fmt((1-gr)*100,0)}%</p></div></div>`;
+}
+function optLong(mu,S,rf){
+const rr=rng(5),sh=v=>{const r=v.reduce((s,x,i)=>s+x*mu[i],0),q=Math.sqrt(mv(S,v).reduce((a,x,i)=>a+x*v[i],0));return(r-rf)/q};
+let b=null,bs=-1e9;
+for(let k=0;k<3000;k++){const e=mu.map(()=>Math.pow(-Math.log(1-rr()),k%2?3:1)),t=e.reduce((a,x)=>a+x,0),w=e.map(x=>x/t),v=sh(w);if(v>bs){b=w;bs=v}}
+for(let k=0;k<4000;k++){const sc=.2*(1-k/4000)+.002,c=b.map(x=>Math.max(0,x+(rr()-.5)*2*sc)),t=c.reduce((a,x)=>a+x,0);if(!t)continue;const d=c.map(x=>x/t),v=sh(d);if(v>bs){b=d;bs=v}}
+return{w:b,s:bs}}
+document.getElementById("optbtn").onclick=()=>{
+const m=document.getElementById("optmsg"),rf=(+document.getElementById("rf").value||0)/100;
+if(A.length<2){m.textContent="Χρειάζονται τουλάχιστον δύο τίτλοι.";return}
+const R=A.map(a=>D[a.id]),mu=R.map(r=>mean(r)*K),S=R.map(x=>R.map(y=>cv(x,y)*K)),res=optLong(mu,S,rf);
+A.forEach((a,i)=>a.w=+(res.w[i]*100).toFixed(1));buildRows();render();
+m.textContent="Εφαρμόστηκε ο συνδυασμός μέγιστου Sharpe (χωρίς short-selling, Sharpe "+fmt(res.s,2)+")."+(Math.max(...res.w)>.8?" Συγκεντρώνεται σε έναν τίτλο, κάτι συνηθισμένο όταν η αναμενόμενη απόδοση εκτιμάται από το παρελθόν.":"")};
+function render(){
+win();
+document.getElementById("optmsg").textContent="";
+const amt0=+document.getElementById("amt").value||0,tt=A.reduce((s,a)=>s+a.w,0);A.forEach(a=>{const f=tt?a.w/tt:0;document.getElementById("v"+a.id).innerHTML=`<b>${fmt(f*100,0)}%</b><br><small>${Math.round(f*amt0).toLocaleString("el-GR")} ${CUR}</small>`});pie(amt0);
+const sel=A.filter(a=>a.w>0),tot=sel.reduce((s,a)=>s+a.w,0);
+if(!sel.length){document.getElementById("metrics").innerHTML="<p>Όρισε τουλάχιστον ένα βάρος πάνω από 0 για να δεις αποτελέσματα.</p>";document.getElementById("chart").innerHTML="";document.getElementById("corr").innerHTML="";document.getElementById("plain").innerHTML="";return}
+const pr=D[sel[0].id].map((_,i)=>sel.reduce((s,a)=>s+a.w/tot*D[a.id][i],0));
+const P=stats(pr),Bs=stats(B),amt=+document.getElementById("amt").value||0,rf=(+document.getElementById("rf").value||0)/100;
+const m=(v,l,neg)=>`<div class="m"><b class="${neg?"neg":""}">${v}</b><span>${l}</span></div>`;
+document.getElementById("metrics").innerHTML=
+m(pct(P.ret),"Ετησιοποιημένη απόδοση (δείκτης αναφοράς "+pct(Bs.ret)+")")+
+m(pct(P.vol),"Μεταβλητότητα: τυπική ετήσια διακύμανση (δείκτης αναφοράς "+pct(Bs.vol)+")")+
+m(pct(P.dd),"Μέγιστη πτώση: χειρότερη υποχώρηση από κορυφή σε βάση (δείκτης αναφοράς "+pct(Bs.dd)+")",1)+
+m(CUR+Math.round(P.var*amt).toLocaleString("el-GR"),"Value at Risk 1 ημέρας, 95% ("+pct(P.var,2)+"): σε 1 στις 20 ημέρες μπορεί να χάσεις τουλάχιστον αυτό το ποσό",1)+
+m(fmt((P.mu-rf)/P.vol,2),"Λόγος Sharpe (μ − Rf)/σ, με μ = "+pct(P.mu)+" (δείκτης αναφοράς "+fmt((Bs.mu-rf)/Bs.vol,2)+")");
+drawChart(P.c,Bs.c,amt);
+let t="<table><tr><th></th>"+sel.map(a=>`<th>${a.id}</th>`).join("")+"</tr>";
+sel.forEach(a=>{t+=`<tr><td class="h">${a.id}</td>`+sel.map(b=>{const c=corr(D[a.id],D[b.id]);const al=Math.abs(c)*.75;return`<td style="background:${c>=0?"rgba(31,95,191,":"rgba(179,52,31,"}${al.toFixed(2)})">${fmt(c,2)}</td>`}).join("")+"</tr>"});
+document.getElementById("corr").innerHTML=t+"</table>";adv(sel,tot,P,rf);plain(sel,tot,P,Bs,rf,amt);
+}
+const cv=(x,y)=>{const a=mean(x),b=mean(y);let s=0;for(let i=0;i<x.length;i++)s+=(x[i]-a)*(y[i]-b);return s/(x.length-1)};
+const mv=(M,v)=>M.map(r=>r.reduce((s,x,j)=>s+x*v[j],0));
+function inv(M){const n=M.length,a=M.map((r,i)=>r.concat(M.map((_,j)=>+(i===j))));for(let i=0;i<n;i++){let p=i;for(let r=i+1;r<n;r++)if(Math.abs(a[r][i])>Math.abs(a[p][i]))p=r;[a[i],a[p]]=[a[p],a[i]];const d=a[i][i];if(Math.abs(d)<1e-14)return null;for(let j=0;j<2*n;j++)a[i][j]/=d;for(let r=0;r<n;r++)if(r!==i){const f=a[r][i];for(let j=0;j<2*n;j++)a[r][j]-=f*a[i][j]}}return a.map(r=>r.slice(n))}
+function adv(sel,tot,P,rf){
+FR=null;
+const n=sel.length,w=sel.map(a=>a.w/tot),R=sel.map(a=>D[a.id]),mu=R.map(r=>mean(r)*K),S=R.map(x=>R.map(y=>cv(x,y)*K));
+let t="<table><tr><th></th>"+sel.map(a=>`<th>${a.id}</th>`).join("")+"</tr>";
+S.forEach((r,i)=>t+=`<tr><td class="h">${sel[i].id}</td>`+r.map(v=>`<td>${fmt(v,4)}</td>`).join("")+"</tr>");
+document.getElementById("cov").innerHTML=t+"</table>";
+const sv=mv(S,w).reduce((s,x,i)=>s+x*w[i],0);
+document.getElementById("varchk").innerHTML=`σp² = wᵀΣw = <b>${fmt(sv,4)}</b> → σp = <b>${pct(Math.sqrt(sv),2)}</b>. Έλεγχος από τη χρονοσειρά του χαρτοφυλακίου: <b>${pct(P.vol,2)}</b>.`;
+if(n<2){document.getElementById("front").innerHTML="<p>Διάλεξε τουλάχιστον δύο τίτλους.</p>";["fleg","fpts","fnote"].forEach(i=>document.getElementById(i).innerHTML="");return}
+const ss=document.getElementById("ss").checked,pf=v=>({r:v.reduce((s,x,i)=>s+x*mu[i],0),s:Math.sqrt(mv(S,v).reduce((s,x,i)=>s+x*v[i],0))});
+let cloud=[],line=[],g,tg;
+if(ss){
+const Si=inv(S);if(!Si){document.getElementById("front").innerHTML="<p>Ο πίνακας Σ δεν αντιστρέφεται: αφαίρεσε έναν πολύ συσχετισμένο τίτλο.</p>";return}
+const o=mv(Si,S.map(()=>1)),q=mv(Si,mu),A=o.reduce((a,b)=>a+b,0),B2=q.reduce((a,b)=>a+b,0),C=mu.reduce((s,x,i)=>s+x*q[i],0),Dd=A*C-B2*B2;
+g=o.map(x=>x/A);
+const z=q.map((x,i)=>x-rf*o[i]),zs=z.reduce((a,b)=>a+b,0);tg=zs>0?z.map(x=>x/zs):null;
+const r0=B2/A,r1=r0+1.5*(Math.max(...mu)-r0)+.02;
+for(let k=0;k<=60;k++){const m=r0+(r1-r0)*k/60;line.push({r:m,s:Math.sqrt((A*m*m-2*B2*m+C)/Dd)})}
+}else{
+const rr=rng(7),pts=[];
+for(let k=0;k<6000;k++){const e=mu.map(()=>Math.pow(-Math.log(1-rr()),k%2?3:1)),s0=e.reduce((a,b)=>a+b,0),ww=e.map(x=>x/s0);pts.push({w:ww,...pf(ww)})}
+cloud=pts;
+const gm=pts.reduce((a,b)=>b.s<a.s?b:a);g=gm.w;
+tg=optLong(mu,S,rf).w;
+const mr=Math.max(...pts.map(p=>p.r)),bins=Array(40).fill(null);
+pts.forEach(p=>{const k=Math.min(39,Math.floor((p.r-gm.r)/(mr-gm.r||1)*40));if(k>=0&&(!bins[k]||p.s<bins[k].s))bins[k]=p});
+line=bins.filter(Boolean)}
+const G=pf(g),T=tg?pf(tg):null,Pp=pf(w);FR={G,T,Pp};const assets=sel.map((a,i)=>({id:a.id,r:mu[i],s:Math.sqrt(S[i][i])}));
+const xs=[...line.map(p=>p.s),...assets.map(a=>a.s),Pp.s,G.s,T?T.s:0],ys=[...line.map(p=>p.r),...assets.map(a=>a.r),Pp.r,G.r,T?T.r:0,rf];
+const xm=Math.max(...xs)*1.1,y0=Math.min(0,...ys),y1=Math.max(...ys)*1.05+.005;
+const W=620,H=320,L=54,Rr=10,Tt=10,Bb=34,X=s=>L+s/xm*(W-L-Rr),Y=r=>Tt+(y1-r)/(y1-y0)*(H-Tt-Bb);
+let sv2="";
+for(let k=0;k<=5;k++){const sx=xm*k/5,ry=y0+(y1-y0)*k/5;sv2+=`<line x1="${L}" x2="${W-Rr}" y1="${Y(ry)}" y2="${Y(ry)}" stroke="var(--line)"/><text x="${L-6}" y="${Y(ry)+4}" text-anchor="end">${pct(ry,0)}</text><text x="${X(sx)}" y="${H-16}" text-anchor="middle">${pct(sx,0)}</text>`}
+sv2+=`<text x="${(L+W)/2}" y="${H-2}" text-anchor="middle">Κίνδυνος σ (ετήσια τυπική απόκλιση)</text><text x="12" y="${H/2}" transform="rotate(-90 12 ${H/2})" text-anchor="middle">Αναμενόμενη απόδοση μ</text>`;
+cloud.filter((_,k)=>k%12===0).forEach(p=>sv2+=`<circle cx="${X(p.s)}" cy="${Y(p.r)}" r="1.6" fill="var(--bench)" opacity=".35"/>`);
+if(T){const sl=(T.r-rf)/T.s,xe=sl>0?Math.min(xm,(y1-rf)/sl):xm;sv2+=`<line x1="${X(0)}" y1="${Y(rf)}" x2="${X(xe)}" y2="${Y(rf+sl*xe)}" stroke="var(--muted)" stroke-width="1.4" stroke-dasharray="6 4"/>`}
+sv2+=`<path d="${line.map((p,i)=>(i?"L":"M")+X(p.s).toFixed(1)+","+Y(p.r).toFixed(1)).join("")}" fill="none" stroke="var(--accent)" stroke-width="2.4"/>`;
+assets.forEach(a=>sv2+=`<circle cx="${X(a.s)}" cy="${Y(a.r)}" r="3.5" fill="none" stroke="var(--text)"/><text x="${X(a.s)+6}" y="${Y(a.r)+3}">${a.id}</text>`);
+sv2+=`<rect x="${X(G.s)-5}" y="${Y(G.r)-5}" width="10" height="10" fill="var(--text)"/>`;
+if(T)sv2+=`<path d="M${X(T.s)},${Y(T.r)-7}l7,7l-7,7l-7,-7z" fill="var(--bad)"/>`;
+sv2+=`<circle cx="${X(Pp.s)}" cy="${Y(Pp.r)}" r="5.5" fill="var(--accent)" stroke="var(--card)" stroke-width="2"/>`;
+document.getElementById("front").innerHTML=`<svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="Αποτελεσματικό σύνορο και Γραμμή Κεφαλαιαγοράς">${sv2}</svg>`;
+document.getElementById("fleg").innerHTML=`<span><b style="color:var(--accent)">●</b> Το χαρτοφυλάκιό σου</span><span>■ Ελάχιστη διακύμανση (GMV)</span><span><b style="color:var(--bad)">◆</b> Μέγιστο Sharpe</span><span><b style="color:var(--accent)">━</b> Σύνορο</span><span>╌ CML</span><span>○ Μεμονωμένοι τίτλοι</span>`;
+const wt=v=>v.map((x,i)=>sel[i].id+" "+fmt(x*100,0)+"%").join(", "),c=(h,b,s)=>`<div class="m"><b>${b}</b><span>${h}: ${s}</span></div>`;
+document.getElementById("fpts").innerHTML=c("Το χαρτοφυλάκιό σου",fmt((Pp.r-rf)/Pp.s,2),`Sharpe · μ ${pct(Pp.r)}, σ ${pct(Pp.s)}`)+c("Ελάχιστη διακύμανση (GMV)",pct(G.s),`σ · μ ${pct(G.r)}, Sharpe ${fmt((G.r-rf)/G.s,2)} · ${wt(g)}`)+(T?c("Μέγιστο Sharpe (εφαπτομένη)",fmt((T.r-rf)/T.s,2),`Sharpe · μ ${pct(T.r)}, σ ${pct(T.s)} · ${wt(tg)}`):c("Μέγιστο Sharpe","—","δεν ορίζεται, γιατί το Rf είναι υψηλότερο από την απόδοση του GMV"));
+document.getElementById("fnote").innerHTML=(ss?"Αναλυτική λύση (Merton): A = 1ᵀΣ⁻¹1, B = 1ᵀΣ⁻¹μ, C = μᵀΣ⁻¹μ, D = AC − B² και σp² = (Aμp² − 2Bμp + C)/D. Επιτρέπονται αρνητικά βάρη (short-selling). ":"Χωρίς short-selling (βάρη ≥ 0) δεν υπάρχει απλός κλειστός τύπος, γι’ αυτό το σύνορο προσεγγίζεται με 6.000 τυχαία χαρτοφυλάκια, αντί για τον Solver του Excel. ")+"Η CML ξεκινά από το Rf και εφάπτεται του συνόρου στο χαρτοφυλάκιο μέγιστου Sharpe. Εδώ μ = μέση ημερήσια απόδοση × "+Math.round(K)+".";
+}
+let FR=null;
+function plain(sel,tot,P,Bs,rf,amt){
+const e=document.getElementById("plain"),E=x=>Math.round(x).toLocaleString("el-GR")+" "+CUR,a=amt||0;
+const end=a*P.c[P.c.length-1]/100,bend=a*Bs.c[Bs.c.length-1]/100,sh=(P.mu-rf)/P.vol,bsh=(Bs.mu-rf)/Bs.vol,v=P.vol;
+const gr=sel.filter(x=>x.t==="GR").reduce((s,x)=>s+x.w,0)/tot,top=sel.reduce((p,x)=>x.w>p.w?x:p,sel[0]),hot=top.w/tot;
+let cs=0,cn=0;for(let i=0;i<sel.length;i++)for(let j=i+1;j<sel.length;j++){cs+=corr(D[sel[i].id],D[sel[j].id]);cn++}
+const ac=cn?cs/cn:0,it=(c,h,t)=>`<div class="pl ${c}"><b>${h}</b> ${t}</div>`;
+let h="";
+h+=it(end>=a?"g":"w","Τι θα είχε γίνει.",`Αν είχες βάλει ${E(a)} πριν από ${Y===1?"1 χρόνο":Y+" χρόνια"}, σήμερα θα είχες περίπου ${E(end)} (${end>=a?"κέρδος":"ζημιά"} ${E(Math.abs(end-a))}). Στο ${BNL}: ${E(bend)}.`);
+h+=it(v<.12?"g":v<.2?"o":"w","Ρίσκο: "+(v<.12?"χαμηλό":v<.2?"μέτριο":"υψηλό")+".",`Μέσα σε ένα έτος η αξία κινείται συνήθως κατά ±${pct(v,0)}.`);
+h+=it(-P.dd<.15?"g":-P.dd<.3?"o":"w","Χειρότερη περίοδος.",`Έπεσε μέχρι και ${pct(-P.dd,0)} από την κορυφή, δηλαδή περίπου ${E(-P.dd*a)}.`);
+h+=it(sh>bsh&&sh>0?"g":"w","Αξίζει το ρίσκο;",sh<0?"Όχι: μια ακίνδυνη τοποθέτηση θα απέδιδε περισσότερα.":sh>bsh?"Ναι, αποδίδει καλύτερα από το "+BNL+" για το ρίσκο που παίρνεις.":"Όχι ιδιαίτερα: το "+BNL+" αποδίδει καλύτερα για το ίδιο ρίσκο.");
+if(FR&&FR.T){const{T,Pp}=FR;if((Pp.r-rf)/Pp.s<(T.r-rf)/T.s*.9)h+=it("o","Περιθώριο βελτίωσης.","Με τις ίδιες μετοχές υπάρχει καλύτερος συνδυασμός. Δες το γράφημα «Αποτελεσματικό σύνορο» πιο κάτω.")}
+const wc=(h.match(/pl w/g)||[]).length;
+e.innerHTML=`<p class="sum">${wc<=1?"Συνολικά: ισορροπημένο, χωρίς μεγάλα προειδοποιητικά σημεία.":wc<=3?"Συνολικά: λογικό, αλλά με μερικά σημεία που θέλουν προσοχή (κόκκινο).":"Συνολικά: επιθετικό, με αρκετά σημεία ρίσκου (κόκκινο)."}</p>`+h+`<p class="tag">Δείχνει το παρελθόν, όχι πρόβλεψη. ${REAL?"Βασίζεται σε ιστορικά δεδομένα· το παρελθόν δεν εγγυάται το μέλλον.":"Τα δεδομένα είναι προσομοίωση."} Δεν είναι επενδυτική συμβουλή.</p>`;
+}
+["amt","rf","ss"].forEach(i=>{const e=document.getElementById(i);e.oninput=e.onchange=render});
+document.getElementById("reseed").onclick=()=>{seed=Math.floor(Math.random()*1e6);gen();render()};
+const MO=["Ιαν","Φεβ","Μαρ","Απρ","Μάι","Ιουν","Ιουλ","Αυγ","Σεπ","Οκτ","Νοε","Δεκ"];
+const fdl=s=>{const[y,m,d]=s.split("-");return +d+" "+MO[+m-1]+" "+y};
+function bd(n){const o=[];let t=new Date();t=new Date(Date.UTC(t.getFullYear(),t.getMonth(),t.getDate()));while(o.length<n){if(t.getUTCDay()%6)o.push(t.toISOString().slice(0,10));t=new Date(t-864e5)}return o.reverse()}
+let WD=[];
+function win(){
+D={};
+if(REAL){const c=new Date(DT[DT.length-1]);c.setFullYear(c.getFullYear()-Y);const cs=c.toISOString().slice(0,10);let t=DT.findIndex(d=>d>=cs);if(t<0)t=0;N=DT.length-t;K=N/Y;for(const k in DF)D[k]=DF[k].slice(t);B=BF.slice(t);WD=[t>0?DT[t-1]:RD.d0].concat(DT.slice(t))}
+else{N=Y*252;K=252;for(const k in DF)D[k]=DF[k].slice(-N);B=BF.slice(-N);WD=bd(N+1)}
+document.getElementById("yl").textContent=Y===1?"1 έτος":Y+" έτη";document.getElementById("bnl").textContent=REAL?BN:"Διεθνές ETF";document.getElementById("curl").textContent=CUR;
+}
+function setYears(max){let o=[3,5].filter(y=>y<=max);if(!o.length)o=[Math.max(1,max)];if(!o.includes(Y))Y=o.includes(3)?3:o[0];document.getElementById("yrs").innerHTML=o.map(y=>`<option value="${y}"${y===Y?" selected":""}>${y===1?"1 έτος":y+" έτη"}</option>`).join("")}
+const fd=d=>d.split("-").reverse().join("/");
+function useReal(){REAL=true;CUR=document.getElementById("curs").value;A=RD.A.filter(a=>a.id!==RD.bm);DF=RD.DF;DT=RD.DT;BN=RD.bm;BNL=RD.bm;BF=DF[RD.bm];setYears(RD.max);
+document.getElementById("reseed").style.display="none";
+document.getElementById("dnote").innerHTML="<b>Πραγματικά ιστορικά δεδομένα</b> από τα αρχεία που ανέβασες (ημερήσιες τιμές), "+fd(DT[0])+" έως "+fd(DT[DT.length-1])+". Το παρελθόν δεν εγγυάται το μέλλον και τίποτα εδώ δεν είναι επενδυτική συμβουλή.";
+buildRows();render()}
+function setMode(m){
+document.getElementById("mode").value=m;document.getElementById("realbox").style.display=m==="real"?"":"none";
+if(m==="real"){if(RD)useReal();else document.getElementById("dmsg").textContent="Ανέβασε τα αρχεία CSV για να ξεκινήσεις. Μέχρι τότε εμφανίζονται τα προσομοιωμένα δεδομένα.";return}
+REAL=false;CUR="€";BN="Διεθνές ETF";BNL="διεθνές ETF";A=A0.map(a=>({...a}));gen();setYears(10);
+document.getElementById("reseed").style.display="";
+document.getElementById("dnote").innerHTML="<b>Προσομοιωμένα δεδομένα.</b> Οι τιμές εδώ είναι προσομοίωση και όχι πραγματικό ιστορικό της αγοράς. Χρησιμοποίησέ τες μόνο για εκπαίδευση, όχι για επενδυτικές αποφάσεις.";
+document.getElementById("dmsg").textContent="Προσομοιωμένα δεδομένα: φανταστικές τιμές, μόνο για εκπαίδευση.";buildRows();render()}
+function pd(s){s=s.trim().replace(/"/g,"");let m=s.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);if(m)return m[1]+"-"+m[2].padStart(2,"0")+"-"+m[3].padStart(2,"0");m=s.match(/^(\d{1,2})[\/.](\d{1,2})[\/.](\d{4})/);return m?m[3]+"-"+m[2].padStart(2,"0")+"-"+m[1].padStart(2,"0"):null}
+function pn(s){s=s.trim().replace(/"/g,"").replace(/\s/g,"");if(s.includes(",")&&s.includes("."))s=s.lastIndexOf(",")>s.lastIndexOf(".")?s.replace(/\./g,"").replace(",","."):s.replace(/,/g,"");else if(s.includes(","))s=s.replace(",",".");return parseFloat(s)}
+function pcsv(t,name){
+const L=t.replace(/^\uFEFF/,"").split(/\r?\n/).filter(x=>x.trim());
+if(L.length<30)return{err:"πολύ λίγες γραμμές"};
+const dl=L[0].split(";").length>L[0].split(",").length?";":",";
+const sp=l=>{const o=[];let c="",q=false;for(const ch of l){if(ch==='"')q=!q;else if(ch===dl&&!q){o.push(c);c=""}else c+=ch}o.push(c);return o};
+const H=sp(L[0]).map(x=>x.trim().toLowerCase());
+let di=H.findIndex(h=>/date|ημερομην/.test(h)),pi=H.findIndex(h=>/adj\s*close/.test(h));
+if(pi<0)pi=H.findIndex(h=>/^close|κλείσιμο|τελευταίο|price|τιμή/.test(h));
+if(di<0)di=0;if(pi<0&&H.length===2)pi=1;
+if(pi<0)return{err:"δεν βρέθηκε στήλη τιμής (Close ή Adj Close)"};
+const m=new Map();
+for(const l of L.slice(1)){const c=sp(l),d=pd(c[di]||""),v=pn(c[pi]||"");if(d&&v>0)m.set(d,v)}
+if(m.size<30)return{err:"δεν διαβάστηκαν αρκετές ημερομηνίες και τιμές"};
+const base=name.replace(/\.csv$/i,"").trim();
+return{id:base.replace(/[^A-Za-z0-9_.\-]/g,"_"),t:/\.AT$/i.test(base)?"GR":"INT",m,d:[...m.keys()].sort()};
+}
+document.getElementById("files").onchange=async e=>{
+const msg=document.getElementById("dmsg"),ser=[],bad=[];
+for(const f of e.target.files){const r=pcsv(await f.text(),f.name);if(r.err)bad.push(f.name+": "+r.err);else ser.push(r)}
+if(ser.length<2){msg.textContent="Χρειάζονται τουλάχιστον 2 έγκυρα αρχεία. "+bad.join(" · ");return}
+const seen={};ser.forEach(x=>{seen[x.id]=(seen[x.id]||0)+1;if(seen[x.id]>1)x.id+="_"+seen[x.id]});
+const dates=ser[0].d.filter(d=>ser.every(x=>x.m.has(d)));
+if(dates.length<253){msg.textContent="Οι κοινές ημέρες των αρχείων είναι "+dates.length+" (χρειάζονται τουλάχιστον 253, δηλαδή περίπου 1 έτος). Έλεγξε ότι τα αρχεία καλύπτουν την ίδια περίοδο."+(bad.length?" "+bad.join(" · "):"");return}
+const gp=[];for(let i=1;i<dates.length;i++)gp.push((new Date(dates[i])-new Date(dates[i-1]))/864e5);gp.sort((a,b)=>a-b);
+const med=gp[Math.floor(gp.length/2)];
+if(med>4){msg.textContent="Τα δεδομένα δεν είναι ημερήσια (τυπικό κενό "+med+" ημέρες). Κατέβασε ξανά με συχνότητα Daily.";return}
+const df={};ser.forEach(x=>{df[x.id]=dates.slice(1).map((d,i)=>x.m.get(d)/x.m.get(dates[i])-1)});
+const pref=ser.find(x=>/^(SPY|IWDA|VWCE|VT|ACWI|VOO|IVV|EUNL|QQQ|VTI)/i.test(x.id))||ser.find(x=>x.t==="INT")||ser[0];
+RD={A:ser.map(x=>({id:x.id,n:x.id,t:x.t,w:Math.round(100/ser.length)})),DF:df,DT:dates.slice(1),d0:dates[0],bm:pref.id,max:Math.max(1,Math.floor((new Date(dates[dates.length-1])-new Date(dates[0]))/(365.25*864e5)))};
+const bm=document.getElementById("bm");bm.innerHTML=ser.map(x=>`<option value="${x.id}"${x.id===pref.id?" selected":""}>${x.id}</option>`).join("");
+useReal();
+msg.textContent="Φορτώθηκαν "+ser.length+" τίτλοι, "+(dates.length-1)+" κοινές ημέρες ("+fd(dates[0])+" έως "+fd(dates[dates.length-1])+"). Πάτησε το «Ελλάδα/Διεθνές» δίπλα σε κάθε τίτλο για να αλλάξεις την κατηγορία. Ο δείκτης αναφοράς ("+pref.id+") δεν μπαίνει στα βάρη, μόνο συγκρίνεται."+(bad.length?" Αγνοήθηκαν: "+bad.join(" · "):"");
+};
+document.getElementById("bm").onchange=e=>{RD.bm=e.target.value;useReal()};
+document.getElementById("mode").onchange=e=>setMode(e.target.value);
+document.getElementById("yrs").onchange=e=>{Y=+e.target.value;render()};
+document.getElementById("curs").onchange=e=>{CUR=e.target.value;render()};
+setMode("sim");
+</script>
+</body>
+</html>
