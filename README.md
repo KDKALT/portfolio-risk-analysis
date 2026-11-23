@@ -2,6 +2,7 @@
 
 An interactive, single-file web application that applies mean–variance portfolio theory (Markowitz) to real daily price data. It shows how a chosen set of stocks and weights would have behaved over the last 3 or 5 years, quantifies the risk of the combination, and compares it with a benchmark. The interface is in Greek.
 
+https://kdkalt.github.io/portfolio-risk-analysis/
 
 ## What it does
 
