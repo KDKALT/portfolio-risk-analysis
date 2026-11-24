@@ -31,6 +31,9 @@ https://kdkalt.github.io/portfolio-risk-analysis/
 
 No server and no external libraries are required. Data files are not included in this repository; check the data provider's terms of use before redistributing them.
 
+!NOTE!
+Download the four CVS files (APPL,JPM,XOM,NASDAC) that are uploaded in the main files of the project and add them to the app so you can view the results that are being analyzed in the last file "Ερμηνεία των αποτελεσμάτων χαρτοφυλακιου"
+
 ## Limitations
 
 - Results are based on historical data and describe the past; they are not predictions.
